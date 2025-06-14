@@ -11,7 +11,7 @@ function Get-MgRoleAssignment {
           It expands related RoleDefinition and DirectoryScope properties for richer output.
   
       .PARAMETER PrincipalId
-          The object ID of the principal (user, group, or service principal) whose role assignments should be queried.
+          (Optional) The object ID of the principal (user, group, or service principal) whose role assignments should be queried.
   
       .EXAMPLE
           Get-MgRoleAssignment -PrincipalId '12345678-90ab-cdef-1234-567890abcdef'
@@ -28,7 +28,7 @@ function Get-MgRoleAssignment {
 
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
+        [Parameter()]
         [string]$PrincipalId
     )
 
@@ -38,16 +38,19 @@ function Get-MgRoleAssignment {
     }
 
     Get-MgRoleManagementDirectoryRoleAssignment -Filter $filter -Expand roleDefinition | ForEach-Object {
-        $RoleAssignment = Get-MgRoleManagementDirectoryRoleAssignment -Filter "id eq '$($_.Id)'" -Expand directoryScope
-        $_.DirectoryScope = $RoleAssignment.DirectoryScope
+        $expandedDirScope = (Get-MgRoleManagementDirectoryRoleAssignment -Filter "id eq '$($_.Id)'" -Expand directoryScope).DirectoryScope
+        $expandedPrincipal = (Get-MgRoleManagementDirectoryRoleAssignment -Filter "id eq '$($_.Id)'" -Expand principal).Principal
 
         [PSCustomObject]@{
             Id                        = $_.Id
             RoleDefinition            = $_.RoleDefinition.DisplayName
             IsRoleDefinitionBuiltIn   = $_.RoleDefinition.IsBuiltIn
-            DirectoryScopeId          = $_.DirectoryScopeId
-            DirectoryScopeType        = $_.DirectoryScope.AdditionalProperties['@odata.type']
-            DirectoryScopeDisplayName = $_.DirectoryScope.AdditionalProperties['displayName']
+            DirectoryScopeId          = $expandedDirScope.Id
+            DirectoryScopeType        = $expandedDirScope.AdditionalProperties['@odata.type']
+            DirectoryScopeDisplayName = $expandedDirScope.AdditionalProperties['displayName']
+            PrincipalId               = $expandedPrincipal.Id
+            PrincipalType             = $expandedPrincipal.AdditionalProperties['@odata.type']
+            PrincipalDisplayName      = $expandedPrincipal.AdditionalProperties['displayName']
         }
     }
 }
