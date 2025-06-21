@@ -45,7 +45,7 @@ function Get-MgRoleAssignment {
             Id                        = $_.Id
             RoleDefinition            = $_.RoleDefinition.DisplayName
             IsRoleDefinitionBuiltIn   = $_.RoleDefinition.IsBuiltIn
-            DirectoryScopeId          = $expandedDirScope.Id
+            DirectoryScopeId          = $_.DirectoryScopeId
             DirectoryScopeType        = $expandedDirScope.AdditionalProperties['@odata.type']
             DirectoryScopeDisplayName = $expandedDirScope.AdditionalProperties['displayName']
             PrincipalId               = $expandedPrincipal.Id
