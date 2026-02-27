@@ -25,6 +25,9 @@
 - `Invoke-EmailGenerator`  
   Generate email addresses using a domain or display name wordlist.
 
+- `Invoke-AzAddAppCredentialEnumerate`  
+  Enumerates Microsoft Entra applications for which a principal can potentially add or update credentials.
+
 - `New-AzStorageAccountSAS`  
   Generate SAS URLs for Azure Storage accounts or containers.
 
@@ -41,6 +44,6 @@
 
 ## Contact
 
-- 🐦 Twitter: [@tbhaxor](https://twitter.com/tbhaxor)  
-- 💼 LinkedIn: [@tbhaxor](https://www.linkedin.com/in/tbhaxor)  
+- 🐦 Twitter: [@tbhaxor](https://twitter.com/tbhaxor)
+- 💼 LinkedIn: [@tbhaxor](https://www.linkedin.com/in/tbhaxor)
 - 📧 Email: [info@tbhaxor.com](mailto:info@tbhaxor.com)
