@@ -3,35 +3,89 @@ Remove-Item Function:/Connect-AzRedLab -ErrorAction SilentlyContinue
 function Connect-AzRedLab {
     <#
         .SYNOPSIS
-        Connects to an Azure account using either a colon-separated credential string or separate username and password.
+        Connects to Azure and Microsoft Graph using user credentials or a service principal.
 
         .DESCRIPTION
-        The `Connect-AzRedLab` function facilitates connecting to an Azure account with either:
-        - A single colon-separated string containing username and password (`username:password`)
-        - Separate `Username` and `Password` parameters.
+        The `Connect-AzRedLab` function authenticates to Azure using either:
 
-        It converts the plain password to a secure string and uses it to create a PSCredential object, which is then passed to `Connect-AzAccount`. The function also supports specifying a custom Azure context name.
+        1. A colon-separated credential string in the format `username:password`
+        2. Separate `Username` and `Password` parameters
+
+        The password is converted into a SecureString and wrapped in a PSCredential
+        object for use with `Connect-AzAccount`.
+
+        Optionally, authentication can be performed as a Service Principal by
+        specifying the `-AsServicePrincipal` switch along with a `-Tenant` ID.
+
+        After successful Azure authentication, the function automatically retrieves
+        an MS Graph access token via `Get-AzAccessToken` and connects to
+        Microsoft Graph using `Connect-MgGraph`.
+
+        Requires:
+        - Az.Accounts module
+        - Microsoft.Graph module
 
         .PARAMETER CredentialString
-        A colon-separated string of the format `username:password`. This parameter is mandatory if using the `UserCredential` parameter set.
+        A colon-separated string in the format:
+            username:password
+
+        Mandatory when using the `UserCredential` parameter set.
 
         .PARAMETER Username
-        The username used for Azure authentication. This is mandatory if using the `UserPassword` parameter set.
+        The username (or Application/Client ID when using Service Principal mode).
+
+        Mandatory when using the `UserPassword` parameter set.
 
         .PARAMETER Password
-        The corresponding password for the username. This is mandatory if using the `UserPassword` parameter set.
+        The password associated with the username
+        (or Client Secret when using Service Principal mode).
+
+        Mandatory when using the `UserPassword` parameter set.
+
+        .PARAMETER AsServicePrincipal
+        Switch indicating authentication should be performed as a Service Principal.
+        When specified, the `Tenant` parameter becomes mandatory.
+
+        .PARAMETER Tenant
+        The Azure AD Tenant ID or domain name.
+        Required when using `-AsServicePrincipal`.
 
         .PARAMETER ContextName
-        (Optional) The name of the Azure context to use or create. Defaults to `"REDLABS"`.
+        Optional Azure context name to create or reuse.
+        Defaults to "REDLABS".
 
         .EXAMPLE
         Connect-AzRedLab -CredentialString "user@example.com:Pa$$w0rd"
 
+        Connects using a colon-separated username and password.
+
         .EXAMPLE
         Connect-AzRedLab -Username "user@example.com" -Password "Pa$$w0rd"
 
+        Connects using separate username and password parameters.
+
+        .EXAMPLE
+        Connect-AzRedLab `
+            -Username "00000000-0000-0000-0000-000000000000" `
+            -Password "client-secret-value" `
+            -AsServicePrincipal `
+            -Tenant "11111111-1111-1111-1111-111111111111"
+
+        Connects using a Service Principal (Client ID + Client Secret)
+        within the specified Tenant.
+
+        .EXAMPLE
+        Connect-AzRedLab -CredentialString "appId:clientSecret" `
+            -AsServicePrincipal `
+            -Tenant "contoso.onmicrosoft.com"
+
+        Connects as a Service Principal using a credential string
+        and a tenant domain.
+
         .NOTES
-        - Requires the Az PowerShell module.
+        - Tenant is mandatory when using -AsServicePrincipal.
+        - ContextName is passed directly to Connect-AzAccount.
+        - The function also establishes a Microsoft Graph session.
     #>
     [CmdletBinding(DefaultParameterSetName = "UserCredential")]
     param (
@@ -48,6 +102,14 @@ function Connect-AzRedLab {
         $Password,
 
         [Parameter()]
+        [switch]
+        $AsServicePrincipal,
+
+        [Parameter()]
+        [string]
+        $Tenant,
+
+        [Parameter()]
         [string]
         $ContextName = "REDLABS"
     )
@@ -59,14 +121,28 @@ function Connect-AzRedLab {
 
         $SecurePassword = ConvertTo-SecureString -String $Password -AsPlainText -Force
         $Credential = New-Object System.Management.Automation.PSCredential($Username, $SecurePassword)
+
+        $azConnectParams = @{
+            Credential  = $Credential
+            ContextName = $ContextName
+            Force       = $true
+        }
+        if ($AsServicePrincipal) {
+            if ([String]::IsNullOrEmpty($Tenant)) {
+                throw "Tenant parameter is required."
+            }
+
+            $azConnectParams.ServicePrincipal = $true
+            $azConnectParams.Tenant = $Tenant
+        }
     }
 
     process {
-        Connect-AzAccount -Credential $Credential -ContextName $ContextName -Force
+        Connect-AzAccount @azConnectParams
         $MSGraphToken = (Get-AzAccessToken -ResourceTypeName MSGraph).Token
         if ($MSGraphToken -isnot [System.Security.SecureString]) {
             $MSGraphToken = ConvertTo-SecureString $MSGraphToken -AsPlainText -Force
         }
-        Connect-MgGraph -AccessToken $MSGraphToken
+        Connect-MgGraph -AccessToken $MSGraphToken -NoWelcome
     }
 }
