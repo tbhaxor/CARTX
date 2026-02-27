@@ -28,13 +28,17 @@ function Get-MgRoleAssignment {
 
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)]
+        [Parameter()]
         [string]$PrincipalId
     )
 
-    $filter = $null
     if (![string]::IsNullOrEmpty($PrincipalId)) {
         $filter = "principalId eq '$PrincipalId'"
+    }
+    else {
+        $account = (Get-MgContext).Account
+        Write-Verbose "Using current logged in account ($account) as filter"
+        $filter = "principalId eq '$((Get-MgUser -UserId $account).Id)'"
     }
 
     Get-MgRoleManagementDirectoryRoleAssignment -Filter $filter -Expand roleDefinition | ForEach-Object {
